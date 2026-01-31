@@ -1,6 +1,5 @@
-﻿namespace Application.Features.Events.Commands.CreateEvent;
+﻿using MediatR;
 
-public class CreateEventCommand
-{
-    
-}
+namespace Application.Features.Events.Commands.CreateEvent;
+
+public record CreateEventCommand(string Name, int TotalTickets) : IRequest<Guid>;
