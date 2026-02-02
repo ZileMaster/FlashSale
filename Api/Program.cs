@@ -1,7 +1,10 @@
 using Application.Common.Interfaces;
+using Application.Features.Events.Consumers;
+using Domain.Events;
 using Infrastructure.Persistence;
 using Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using MassTransit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +19,28 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Appli
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddMassTransit(x =>
+{
+    x.UsingInMemory((context, cfg) => cfg.ConfigureEndpoints(context));
+
+    x.AddRider(rider =>
+    {
+        rider.AddConsumer<TicketPurchaseConsumer>();
+        
+        rider.AddProducer<TicketPurchaseRequest>("ticket-sales");
+
+        rider.UsingKafka((context, k) =>
+        {
+            k.Host("localhost:9092");
+            
+            k.TopicEndpoint<TicketPurchaseRequest>("ticket-sales", "ticket-group", e =>
+            {
+                e.ConfigureConsumer<TicketPurchaseConsumer>(context);
+            });
+        });
+    });
+});
 
 var app = builder.Build();
 

@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Mvc; 
 using Application.Features.Events.Commands.CreateEvent;
 using Application.Features.Events.Commands.PurchaseTicket;
+using Domain.Events;
+using MassTransit;
 
 namespace Api.Controllers;
 
@@ -10,10 +12,12 @@ namespace Api.Controllers;
 public class EventsController : ControllerBase
 {
     public readonly IMediator _mediator;
+    private readonly ITopicProducer<TicketPurchaseRequest> _producer;
 
-    public EventsController(IMediator mediator)
+    public EventsController(IMediator mediator,  ITopicProducer<TicketPurchaseRequest> producer)
     {
         _mediator = mediator;
+        _producer = producer;
     }
 
     [HttpPost]
@@ -26,12 +30,14 @@ public class EventsController : ControllerBase
     [HttpPost("purchase")]
     public async Task<IActionResult> Purchase(PurchaseTicketCommand command)
     {
-        var success = await _mediator.Send(command);
-        if (!success)
+        await _producer.Produce(new TicketPurchaseRequest
         {
-            return BadRequest("Tickets sold out or event not found.");
-        }
+            EventId =  command.EventId,
+            Quantity = command.Quantity,
+            UserId = Guid.NewGuid(), 
+            Timestamp = DateTime.UtcNow
+        });
 
-        return Ok("Tickets purchased successfully.");
+        return Accepted("Request received! You will get an email shortly.");
     }
 }
